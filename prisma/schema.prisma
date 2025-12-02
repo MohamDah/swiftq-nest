@@ -1,0 +1,102 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enum for queue entry status tracking
+enum QueueEntryStatus {
+  WAITING    // Customer is waiting in queue
+  CALLED     // Customer has been called, approaching counter
+  SERVED     // Customer has been served
+  CANCELLED  // Customer cancelled/left queue
+  NO_SHOW    // Customer was called but didn't show up
+}
+
+// Host model - Authenticated service providers who create and manage queues
+model Host {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  password     String   
+  businessName String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  queues Queue[]
+
+  @@map("hosts")
+}
+
+model Queue {
+  id                 String   @id @default(uuid())
+  qrCode             String   @unique
+  name               String 
+  description        String?
+  isActive           Boolean  @default(true)
+  maxSize            Int?     
+  averageServiceTime Int      @default(5)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  hostId  String
+  host    Host          @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  entries QueueEntry[]
+  history QueueHistory[]
+
+  @@index([hostId])
+  @@index([qrCode])
+  @@map("queues")
+}
+
+model QueueEntry {
+  id                String            @id @default(uuid()) // Serves as anonymous session token
+  queueId           String
+  customerName      String?           
+  position          Int               // Current position in queue (1, 2, 3...)
+  status            QueueEntryStatus  @default(WAITING)
+  estimatedWaitTime Int?              // In minutes, calculated dynamically
+  joinedAt          DateTime          @default(now())
+  calledAt          DateTime?         
+  servedAt          DateTime?         
+  expiresAt         DateTime?        
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  queue Queue @relation(fields: [queueId], references: [id], onDelete: Cascade)
+
+  @@index([queueId, status, position]) 
+  @@index([expiresAt]) // For cleanup cron job
+  @@map("queue_entries")
+}
+
+// QueueHistory model - Daily analytics and audit trail
+model QueueHistory {
+  id                 String   @id @default(uuid())
+  queueId            String
+  date               DateTime @db.Date // Daily aggregation
+  totalServed        Int      @default(0)
+  averageWaitTime    Float?   // In minutes
+  peakQueueSize      Int      @default(0)
+  totalCancellations Int      @default(0)
+  totalNoShows       Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  queue Queue @relation(fields: [queueId], references: [id], onDelete: Cascade)
+
+  @@unique([queueId, date]) // One record per queue per day
+  @@index([queueId, date]) // Fast analytics retrieval
+  @@map("queue_history")
+}
