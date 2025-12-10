@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsNumber,
   IsOptional,
   IsPositive,
@@ -14,6 +15,10 @@ export class CreateQueueDto implements Omit<
   @IsString()
   @MinLength(3)
   name: string;
+
+  @IsOptional()
+  @IsBoolean()
+  requireNames?: boolean;
 
   @IsOptional()
   @IsNumber()

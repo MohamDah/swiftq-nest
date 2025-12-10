@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -11,6 +12,8 @@ import { CreateHostDto } from './dto/create-host.dto';
 import { AuthService } from './auth.service';
 import { HostDto } from './dto/host.dto';
 import { LocalGuard } from './guards/local.guard';
+import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
+import { AuthReq } from 'src/shared/decorators/auth.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -24,7 +27,13 @@ export class AuthController {
   @UseGuards(LocalGuard)
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  login(@Request() req: { user: HostDto }) {
-    return this.authService.login(req.user);
+  login(@CurrentUser() user: HostDto) {
+    return this.authService.login(user);
+  }
+
+  @AuthReq()
+  @Get()
+  findLoggedIn(@CurrentUser() user: HostDto) {
+    return this.authService.findOne(user.id);
   }
 }

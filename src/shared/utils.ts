@@ -1,10 +1,11 @@
-/**Generates a random alphanumeric ID consisting of 7 characters. */
-export function generateId() {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+import crypto from 'node:crypto';
+/**Generates a random alphanumeric ID. */
+export function generateId(length: number = 6): string {
+  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let result = '';
 
-  for (let i = 0; i < 7; i++) {
-    const randomIndex = Math.floor(Math.random() * characters.length);
+  for (let i = 0; i < length; i++) {
+    const randomIndex = crypto.randomInt(0, characters.length);
     result += characters.charAt(randomIndex);
   }
 

@@ -56,4 +56,8 @@ export class AuthService {
       }),
     };
   }
+
+  findOne(id: string) {
+    return this.prisma.host.findUnique({ where: { id } });
+  }
 }

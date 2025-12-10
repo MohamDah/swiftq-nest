@@ -5,8 +5,8 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
   moduleFormat = "cjs"
 }
 
@@ -16,18 +16,18 @@ datasource db {
 
 // Enum for queue entry status tracking
 enum QueueEntryStatus {
-  WAITING    // Customer is waiting in queue
-  CALLED     // Customer has been called, approaching counter
-  SERVED     // Customer has been served
-  CANCELLED  // Customer cancelled/left queue
-  NO_SHOW    // Customer was called but didn't show up
+  WAITING // Customer is waiting in queue
+  CALLED // Customer has been called, approaching counter
+  SERVED // Customer has been served
+  CANCELLED // Customer cancelled/left queue
+  NO_SHOW // Customer was called but didn't show up
 }
 
 // Host model - Authenticated service providers who create and manage queues
 model Host {
   id           String   @id @default(uuid())
   email        String   @unique
-  password     String   
+  password     String
   businessName String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -41,16 +41,17 @@ model Host {
 model Queue {
   id                 String   @id @default(uuid())
   qrCode             String   @unique
-  name               String 
+  name               String
   description        String?
   isActive           Boolean  @default(true)
-  maxSize            Int?     
+  maxSize            Int?
   averageServiceTime Int      @default(5)
+  requireNames       Boolean? @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
   hostId  String
-  host    Host          @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  host    Host           @relation(fields: [hostId], references: [id], onDelete: Cascade)
   entries QueueEntry[]
   history QueueHistory[]
 
@@ -60,22 +61,22 @@ model Queue {
 }
 
 model QueueEntry {
-  id                String            @id @default(uuid()) // Serves as anonymous session token
+  id                String           @id @default(uuid()) // Serves as anonymous session token
   queueId           String
-  customerName      String?           
-  position          Int               // Current position in queue (1, 2, 3...)
-  status            QueueEntryStatus  @default(WAITING)
-  estimatedWaitTime Int?              // In minutes, calculated dynamically
-  joinedAt          DateTime          @default(now())
-  calledAt          DateTime?         
-  servedAt          DateTime?         
-  expiresAt         DateTime?        
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  customerName      String?
+  position          Int // Current position in queue (1, 2, 3...)
+  status            QueueEntryStatus @default(WAITING)
+  estimatedWaitTime Int? // In minutes, calculated dynamically
+  joinedAt          DateTime         @default(now())
+  calledAt          DateTime?
+  servedAt          DateTime?
+  expiresAt         DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   queue Queue @relation(fields: [queueId], references: [id], onDelete: Cascade)
 
-  @@index([queueId, status, position]) 
+  @@index([queueId, status, position])
   @@index([expiresAt]) // For cleanup cron job
   @@map("queue_entries")
 }
@@ -86,7 +87,7 @@ model QueueHistory {
   queueId            String
   date               DateTime @db.Date // Daily aggregation
   totalServed        Int      @default(0)
-  averageWaitTime    Float?   // In minutes
+  averageWaitTime    Float? // In minutes
   peakQueueSize      Int      @default(0)
   totalCancellations Int      @default(0)
   totalNoShows       Int      @default(0)

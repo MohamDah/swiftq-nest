@@ -4,6 +4,7 @@ import { AuthReq } from 'src/shared/decorators/auth.decorator';
 import { CreateQueueDto } from './dto/create-queue.dto';
 import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { HostDto } from 'src/auth/dto/host.dto';
+import { JoinQueueDto } from './dto/join-queue.dto';
 
 @Controller('queues')
 export class QueuesController {
@@ -24,5 +25,10 @@ export class QueuesController {
   @Get(':qrCode')
   findOne(@Param('qrCode') qrCode: string) {
     return this.queuesService.findOne(qrCode);
+  }
+
+  @Post(':qrCode/join')
+  joinQueue(@Param('qrCode') qrCode: string, @Body() dto: JoinQueueDto) {
+    return this.queuesService.joinQueue(dto, qrCode);
   }
 }
