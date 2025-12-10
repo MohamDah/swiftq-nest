@@ -49,6 +49,7 @@ model Queue {
   requireNames       Boolean? @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  deletedAt         DateTime?
 
   hostId  String
   host    Host           @relation(fields: [hostId], references: [id], onDelete: Cascade)

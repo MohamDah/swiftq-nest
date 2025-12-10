@@ -7,7 +7,12 @@ import { AuthModule } from './auth/auth.module';
 import { QueuesModule } from './queues/queues.module';
 
 @Module({
-  imports: [PrismaModule, ConfigModule.forRoot({ isGlobal: true }), AuthModule, QueuesModule],
+  imports: [
+    PrismaModule,
+    ConfigModule.forRoot({ isGlobal: true }),
+    AuthModule,
+    QueuesModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

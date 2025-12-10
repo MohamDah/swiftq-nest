@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+} from '@nestjs/common';
 import { QueuesService } from './queues.service';
 import { AuthReq } from 'src/shared/decorators/auth.decorator';
 import { CreateQueueDto } from './dto/create-queue.dto';
@@ -30,5 +38,10 @@ export class QueuesController {
   @Post(':qrCode/join')
   joinQueue(@Param('qrCode') qrCode: string, @Body() dto: JoinQueueDto) {
     return this.queuesService.joinQueue(dto, qrCode);
+  }
+
+  @Delete(':id')
+  delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() host: HostDto) {
+    return this.queuesService.delete(id, host.id);
   }
 }

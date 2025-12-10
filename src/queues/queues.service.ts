@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   InternalServerErrorException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateQueueDto } from './dto/create-queue.dto';
@@ -48,12 +49,23 @@ export class QueuesService {
   }
 
   findAll(hostId: string) {
-    return this.prisma.queue.findMany({ where: { hostId } });
+    return this.prisma.queue.findMany({
+      where: { hostId, deletedAt: null },
+      include: {
+        _count: {
+          select: {
+            entries: {
+              where: { status: { in: ['WAITING', 'CALLED'] } },
+            },
+          },
+        },
+      },
+    });
   }
 
   findOne(qrCode: string) {
     return this.prisma.queue.findUniqueOrThrow({
-      where: { qrCode },
+      where: { qrCode, deletedAt: null },
       include: {
         entries: {
           where: { status: { in: ['WAITING', 'CALLED'] } },
@@ -75,7 +87,7 @@ export class QueuesService {
   async joinQueue(dto: JoinQueueDto, qrCode: string) {
     return this.prisma.$transaction(async (tx) => {
       const queue = await tx.queue.findUniqueOrThrow({
-        where: { qrCode },
+        where: { qrCode, deletedAt: null },
         select: {
           id: true,
           isActive: true,
@@ -125,6 +137,48 @@ export class QueuesService {
       });
 
       return entry;
+    });
+  }
+
+  delete(id: string, hostId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const queue = await tx.queue.findFirst({
+        where: { id, deletedAt: null },
+        include: {
+          _count: {
+            select: {
+              entries: {
+                where: { status: { in: ['WAITING', 'CALLED'] } },
+              },
+            },
+          },
+        },
+      });
+
+      if (!queue) {
+        throw new BadRequestException('Queue not found');
+      }
+
+      if (queue.hostId !== hostId) {
+        throw new ForbiddenException('You do not own this queue');
+      }
+
+      // Safety check: Don't delete queues with active customers
+      if (queue._count.entries > 0) {
+        throw new BadRequestException(
+          `Cannot delete queue with ${queue._count.entries} active customers. ` +
+            'Please serve or cancel all customers first, or disable the queue instead.',
+        );
+      }
+
+      // Soft delete (mark as deleted, keep data)
+      return tx.queue.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          isActive: false, // Also deactivate
+        },
+      });
     });
   }
 }
