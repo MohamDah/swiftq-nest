@@ -2,12 +2,12 @@ import {
   Injectable,
   BadRequestException,
   InternalServerErrorException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateQueueDto } from './dto/create-queue.dto';
 import { generateId } from 'src/shared/utils';
 import { JoinQueueDto } from './dto/join-queue.dto';
+import { UpdateQueueDto } from './dto/update-queue.dto';
 
 @Injectable()
 export class QueuesService {
@@ -140,10 +140,10 @@ export class QueuesService {
     });
   }
 
-  delete(id: string, hostId: string) {
+  delete(queueId: string, hostId: string) {
     return this.prisma.$transaction(async (tx) => {
       const queue = await tx.queue.findFirst({
-        where: { id, deletedAt: null },
+        where: { id: queueId, deletedAt: null, hostId },
         include: {
           _count: {
             select: {
@@ -159,10 +159,6 @@ export class QueuesService {
         throw new BadRequestException('Queue not found');
       }
 
-      if (queue.hostId !== hostId) {
-        throw new ForbiddenException('You do not own this queue');
-      }
-
       // Safety check: Don't delete queues with active customers
       if (queue._count.entries > 0) {
         throw new BadRequestException(
@@ -173,12 +169,19 @@ export class QueuesService {
 
       // Soft delete (mark as deleted, keep data)
       return tx.queue.update({
-        where: { id },
+        where: { id: queueId },
         data: {
           deletedAt: new Date(),
           isActive: false, // Also deactivate
         },
       });
+    });
+  }
+
+  update(queueId: string, hostId: string, dto: UpdateQueueDto) {
+    return this.prisma.queue.update({
+      where: { id: queueId, deletedAt: null, hostId },
+      data: dto,
     });
   }
 }

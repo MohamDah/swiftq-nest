@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
 } from '@nestjs/common';
 import { QueuesService } from './queues.service';
@@ -13,6 +14,7 @@ import { CreateQueueDto } from './dto/create-queue.dto';
 import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { HostDto } from 'src/auth/dto/host.dto';
 import { JoinQueueDto } from './dto/join-queue.dto';
+import { UpdateQueueDto } from './dto/update-queue.dto';
 
 @Controller('queues')
 export class QueuesController {
@@ -40,8 +42,19 @@ export class QueuesController {
     return this.queuesService.joinQueue(dto, qrCode);
   }
 
+  @AuthReq()
   @Delete(':id')
   delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() host: HostDto) {
     return this.queuesService.delete(id, host.id);
+  }
+
+  @AuthReq()
+  @Patch(':id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() host: HostDto,
+    @Body() dto: UpdateQueueDto,
+  ) {
+    return this.queuesService.update(id, host.id, dto);
   }
 }
