@@ -63,25 +63,73 @@ export class QueuesService {
     });
   }
 
-  findOne(qrCode: string) {
-    return this.prisma.queue.findUniqueOrThrow({
-      where: { qrCode, deletedAt: null },
+  async findOnePublic(qrCode: string) {
+    const queue = await this.prisma.queue.findUniqueOrThrow({
+      where: { qrCode },
+      select: {
+        name: true,
+        description: true,
+        isActive: true,
+        maxSize: true,
+        averageServiceTime: true,
+        requireNames: true,
+        host: {
+          select: {
+            businessName: true,
+          },
+        },
+        _count: {
+          select: {
+            entries: {
+              where: { status: { in: ['WAITING', 'CALLED'] } },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      qrCode,
+      name: queue.name,
+      description: queue.description,
+      businessName: queue.host.businessName,
+      isActive: queue.isActive,
+      requireNames: queue.requireNames,
+      currentSize: queue._count.entries,
+      maxSize: queue.maxSize,
+      averageServiceTime: queue.averageServiceTime,
+      estimatedWaitTime: queue._count.entries * queue.averageServiceTime,
+      isFull: queue.maxSize ? queue._count.entries >= queue.maxSize : false,
+    };
+  }
+
+  async findOneManage(id: string, hostId: string) {
+    const queue = await this.prisma.queue.findUniqueOrThrow({
+      where: { id, hostId },
       include: {
         entries: {
           where: { status: { in: ['WAITING', 'CALLED'] } },
           orderBy: { position: 'asc' },
           select: {
+            id: true,
             customerName: true,
             position: true,
             status: true,
             estimatedWaitTime: true,
+            joinedAt: true,
             calledAt: true,
-            servedAt: true,
           },
         },
-        host: { omit: { password: true, createdAt: true, updatedAt: true } },
+        host: {
+          select: {
+            id: true,
+            businessName: true,
+            email: true,
+          },
+        },
       },
     });
+    return queue;
   }
 
   async joinQueue(dto: JoinQueueDto, qrCode: string) {

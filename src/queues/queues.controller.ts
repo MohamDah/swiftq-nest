@@ -33,8 +33,16 @@ export class QueuesController {
   }
 
   @Get(':qrCode')
-  findOne(@Param('qrCode') qrCode: string) {
-    return this.queuesService.findOne(qrCode);
+  findOnePublic(@Param('qrCode') qrCode: string) {
+    return this.queuesService.findOnePublic(qrCode);
+  }
+
+  @Get(':id/manage')
+  findOneManage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() host: HostDto,
+  ) {
+    return this.queuesService.findOneManage(id, host.id);
   }
 
   @Post(':qrCode/join')
