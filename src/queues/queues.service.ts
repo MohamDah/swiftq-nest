@@ -132,6 +132,42 @@ export class QueuesService {
     return queue;
   }
 
+  async checkExistingEntry(qrCode: string, sessionToken?: string) {
+    if (!sessionToken) {
+      return { hasEntry: false };
+    }
+
+    const queue = await this.prisma.queue.findUnique({
+      where: { qrCode },
+      select: { id: true },
+    });
+
+    if (!queue) {
+      return { hasEntry: false };
+    }
+
+    const entry = await this.prisma.queueEntry.findFirst({
+      where: {
+        id: sessionToken,
+        queueId: queue.id,
+        status: { in: ['WAITING', 'CALLED'] },
+      },
+      select: {
+        id: true,
+        position: true,
+        status: true,
+        estimatedWaitTime: true,
+        customerName: true,
+        joinedAt: true,
+      },
+    });
+
+    return {
+      hasEntry: !!entry,
+      entry,
+    };
+  }
+
   async joinQueue(dto: JoinQueueDto, qrCode: string) {
     return this.prisma.$transaction(async (tx) => {
       const queue = await tx.queue.findUniqueOrThrow({
@@ -141,6 +177,7 @@ export class QueuesService {
           isActive: true,
           maxSize: true,
           averageServiceTime: true,
+          requireNames: true,
           _count: {
             select: {
               entries: {
@@ -150,6 +187,10 @@ export class QueuesService {
           },
         },
       });
+
+      if (queue.requireNames && !dto.customerName) {
+        throw new BadRequestException('customerName is required');
+      }
 
       if (!queue.isActive) {
         throw new BadRequestException(
@@ -177,6 +218,7 @@ export class QueuesService {
         },
         select: {
           id: true,
+          customerName: true,
           position: true,
           estimatedWaitTime: true,
           joinedAt: true,
@@ -184,7 +226,7 @@ export class QueuesService {
         },
       });
 
-      return entry;
+      return { ...entry, qrCode };
     });
   }
 
