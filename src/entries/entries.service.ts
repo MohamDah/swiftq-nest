@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Body, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { UpdateEntryDto } from './dto/update-entry.dto';
 
 @Injectable()
 export class EntriesService {
@@ -65,5 +66,12 @@ export class EntriesService {
         averageServiceTime: entry.queue.averageServiceTime,
       },
     };
+  }
+
+  async update(entryId: string, dto: UpdateEntryDto = {}) {
+    return this.prisma.queueEntry.update({
+      where: { id: entryId },
+      data: dto,
+    });
   }
 }
