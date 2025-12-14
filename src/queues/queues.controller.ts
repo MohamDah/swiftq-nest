@@ -55,7 +55,7 @@ export class QueuesController {
     @Param('qrCode') qrCode: string,
     @Query('token', ParseUUIDPipe) token?: string,
   ) {
-    return this.queuesService.checkExistingEntry(qrCode, token);
+    return this.entriesService.checkExistingEntry(qrCode, token);
   }
 
   @Get('entry-status/:entryId')
@@ -65,7 +65,7 @@ export class QueuesController {
 
   @Post(':qrCode/join')
   joinQueue(@Param('qrCode') qrCode: string, @Body() dto: JoinQueueDto) {
-    return this.queuesService.joinQueue(dto, qrCode);
+    return this.entriesService.joinQueue(dto, qrCode);
   }
 
   @AuthReq()
