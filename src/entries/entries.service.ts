@@ -1,6 +1,5 @@
-import { BadRequestException, Body, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { UpdateEntryDto } from './dto/update-entry.dto';
 import { JoinQueueDto } from 'src/queues/dto/join-queue.dto';
 import { TransactionClient } from 'src/generated/prisma/internal/prismaNamespace';
 import { generateDisplayNumber } from 'src/shared/utils';
@@ -204,10 +203,89 @@ export class EntriesService {
     };
   }
 
-  async update(entryId: string, dto: UpdateEntryDto = {}) {
-    return this.prisma.queueEntry.update({
-      where: { id: entryId },
-      data: dto,
+  /**
+   * CUSTOMER ACTION: Cancel/leave queue
+   * - Only customer can cancel their own entry
+   * - Can only cancel if WAITING or CALLED
+   * - Shifts positions down for everyone behind
+   * - Triggers WebSocket update
+   */
+  async cancelEntry(entryId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const entry = await tx.queueEntry.findUniqueOrThrow({
+        where: { id: entryId },
+        select: {
+          id: true,
+          queueId: true,
+          position: true,
+          status: true,
+          displayNumber: true,
+        },
+      });
+
+      // Validate state transition
+      if (!['WAITING', 'CALLED'].includes(entry.status)) {
+        throw new BadRequestException(
+          `Cannot cancel entry with status: ${entry.status}`,
+        );
+      }
+
+      // Update entry status
+      await tx.queueEntry.update({
+        where: { id: entryId },
+        data: {
+          status: 'CANCELLED',
+          // Keep position/displayNumber for audit trail
+        },
+      });
+
+      // Shift positions down for everyone behind
+      await tx.queueEntry.updateMany({
+        where: {
+          queueId: entry.queueId,
+          position: { gt: entry.position },
+          status: { in: ['WAITING', 'CALLED'] },
+        },
+        data: {
+          position: { decrement: 1 },
+        },
+      });
+
+      await this.recalculateWaitTimes(entry.queueId, tx);
+
+      // TODO: Trigger WebSocket broadcast
+      // this.queuesGateway.notifyPositionUpdate(entry.queueId);
+
+      return {
+        success: true,
+        message: 'Successfully left queue',
+        displayNumber: entry.displayNumber,
+      };
     });
+  }
+
+  // HELPERS
+  private async recalculateWaitTimes(queueId: string, tx: TransactionClient) {
+    const queue = await tx.queue.findUniqueOrThrow({
+      where: { id: queueId },
+      select: { averageServiceTime: true },
+    });
+
+    const waitingCustomers = await tx.queueEntry.findMany({
+      where: {
+        queueId,
+        status: { in: ['WAITING', 'CALLED'] },
+      },
+      select: { id: true, position: true },
+    });
+
+    for (const customer of waitingCustomers) {
+      await tx.queueEntry.update({
+        where: { id: customer.id },
+        data: {
+          estimatedWaitTime: customer.position * queue.averageServiceTime,
+        },
+      });
+    }
   }
 }
