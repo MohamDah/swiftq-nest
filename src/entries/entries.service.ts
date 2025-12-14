@@ -15,6 +15,7 @@ export class EntriesService {
         status: true,
         estimatedWaitTime: true,
         customerName: true,
+        displayNumber: true,
         joinedAt: true,
         calledAt: true,
         queue: {
@@ -52,6 +53,7 @@ export class EntriesService {
       status: entry.status,
       estimatedWaitTime: entry.estimatedWaitTime,
       customerName: entry.customerName,
+      displayNumber: entry.displayNumber,
       joinedAt: entry.joinedAt,
       calledAt: entry.calledAt,
       peopleAhead,

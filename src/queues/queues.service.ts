@@ -5,9 +5,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateQueueDto } from './dto/create-queue.dto';
-import { generateId } from 'src/shared/utils';
+import { generateDisplayNumber, generateId } from 'src/shared/utils';
 import { JoinQueueDto } from './dto/join-queue.dto';
 import { UpdateQueueDto } from './dto/update-queue.dto';
+import { TransactionClient } from 'src/generated/prisma/internal/prismaNamespace';
 
 @Injectable()
 export class QueuesService {
@@ -34,6 +35,31 @@ export class QueuesService {
     throw new InternalServerErrorException(
       'Failed to generate unique QR code after multiple attempts',
     );
+  }
+
+  private async generateUniqueDisplayNumber(
+    queueId: string,
+    tx: TransactionClient,
+    maxAttempts: number = 10,
+  ): Promise<string> {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const displayNumber = generateDisplayNumber();
+
+      const existing = await tx.queueEntry.findFirst({
+        where: {
+          queueId,
+          displayNumber,
+          status: { in: ['WAITING', 'CALLED'] },
+        },
+      });
+
+      if (!existing) {
+        return displayNumber;
+      }
+    }
+
+    // Fallback: use timestamp-based unique number
+    return `X${Date.now().toString().slice(-2)}`;
   }
 
   async create(dto: CreateQueueDto, hostId: string) {
@@ -112,6 +138,7 @@ export class QueuesService {
           orderBy: { position: 'asc' },
           select: {
             id: true,
+            displayNumber: true,
             customerName: true,
             position: true,
             status: true,
@@ -154,6 +181,7 @@ export class QueuesService {
       },
       select: {
         id: true,
+        displayNumber: true,
         position: true,
         status: true,
         estimatedWaitTime: true,
@@ -205,12 +233,18 @@ export class QueuesService {
       }
 
       const position = currentSize + 1;
-
       const estimatedWaitTime = position * queue.averageServiceTime;
+
+      // Generate unique display number
+      const displayNumber = await this.generateUniqueDisplayNumber(
+        queue.id,
+        tx,
+      );
 
       const entry = await tx.queueEntry.create({
         data: {
           queueId: queue.id,
+          displayNumber,
           customerName: dto.customerName,
           position,
           estimatedWaitTime,
@@ -218,6 +252,7 @@ export class QueuesService {
         },
         select: {
           id: true,
+          displayNumber: true,
           customerName: true,
           position: true,
           estimatedWaitTime: true,
@@ -249,7 +284,6 @@ export class QueuesService {
         throw new BadRequestException('Queue not found');
       }
 
-      // Safety check: Don't delete queues with active customers
       if (queue._count.entries > 0) {
         throw new BadRequestException(
           `Cannot delete queue with ${queue._count.entries} active customers. ` +
@@ -257,12 +291,11 @@ export class QueuesService {
         );
       }
 
-      // Soft delete (mark as deleted, keep data)
       return tx.queue.update({
         where: { id: queueId },
         data: {
           deletedAt: new Date(),
-          isActive: false, // Also deactivate
+          isActive: false,
         },
       });
     });
