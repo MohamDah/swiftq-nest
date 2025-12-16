@@ -6,7 +6,10 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JoinQueueDto } from 'src/queues/dto/join-queue.dto';
 import { TransactionClient } from 'src/generated/prisma/internal/prismaNamespace';
-import { generateDisplayNumber } from 'src/shared/utils';
+import {
+  generateDisplayNumber,
+  calculateActualPosition,
+} from 'src/shared/utils';
 
 @Injectable()
 export class EntriesService {
@@ -148,7 +151,7 @@ export class EntriesService {
       where: { id: entryId },
       select: {
         id: true,
-        position: true,
+        position: true, // Original position
         status: true,
         estimatedWaitTime: true,
         customerName: true,
@@ -164,56 +167,43 @@ export class EntriesService {
             averageServiceTime: true,
             isActive: true,
             host: { select: { businessName: true } },
-            _count: {
-              select: {
-                entries: {
-                  where: { status: { in: ['WAITING', 'CALLED'] } },
-                },
-              },
+            entries: {
+              where: { status: { in: ['WAITING', 'CALLED'] } },
+              select: { position: true },
             },
           },
         },
       },
     });
 
-    const peopleAhead = await this.prisma.queueEntry.count({
-      where: {
-        queueId: entry.queue.id,
-        status: { in: ['WAITING', 'CALLED'] },
-        position: { lt: entry.position },
-      },
-    });
+    const actualPosition = calculateActualPosition(
+      entry.position,
+      entry.queue.entries,
+    );
 
     return {
       sessionToken: entry.id,
-      position: entry.position,
+      position: actualPosition,
       status: entry.status,
-      estimatedWaitTime: entry.estimatedWaitTime,
+      estimatedWaitTime: actualPosition * entry.queue.averageServiceTime,
       customerName: entry.customerName,
       displayNumber: entry.displayNumber,
       joinedAt: entry.joinedAt,
       calledAt: entry.calledAt,
-      peopleAhead,
+      peopleAhead: actualPosition - 1,
       queue: {
         id: entry.queue.id,
         qrCode: entry.queue.qrCode,
         name: entry.queue.name,
         description: entry.queue.description,
         businessName: entry.queue.host.businessName,
-        totalWaiting: entry.queue._count.entries,
+        totalWaiting: entry.queue.entries.length,
         isActive: entry.queue.isActive,
         averageServiceTime: entry.queue.averageServiceTime,
       },
     };
   }
 
-  /**
-   * CUSTOMER ACTION: Cancel/leave queue
-   * - Only customer can cancel their own entry
-   * - Can only cancel if WAITING or CALLED
-   * - Shifts positions down for everyone behind
-   * - Triggers WebSocket update
-   */
   async cancelEntry(entryId: string) {
     return this.prisma.$transaction(async (tx) => {
       const entry = await tx.queueEntry.findUniqueOrThrow({
@@ -350,9 +340,13 @@ export class EntriesService {
         },
       });
 
-      // No need to shift positions - customer already removed from active queue
+      // ✅ Positions automatically shift because we calculate dynamically
+      // When getEntryStatus() is called:
+      //   - It counts only WAITING/CALLED entries with position < myPosition
+      //   - SERVED entries are excluded from the count
+      //   - So everyone automatically moves up!
 
-      // TODO: Broadcast update
+      // TODO: Broadcast update so all customers see new positions
       // this.queuesGateway.notifyPositionUpdate(updated.queueId);
 
       return {
@@ -374,16 +368,20 @@ export class EntriesService {
         queueId,
         status: { in: ['WAITING', 'CALLED'] },
       },
+      orderBy: { position: 'asc' },
       select: { id: true, position: true },
     });
 
+    // Recalculate based on actual position in line
+    let actualPosition = 1;
     for (const customer of waitingCustomers) {
       await tx.queueEntry.update({
         where: { id: customer.id },
         data: {
-          estimatedWaitTime: customer.position * queue.averageServiceTime,
+          estimatedWaitTime: actualPosition * queue.averageServiceTime,
         },
       });
+      actualPosition++;
     }
   }
 }
