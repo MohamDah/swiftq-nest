@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JoinQueueDto } from 'src/queues/dto/join-queue.dto';
 import { TransactionClient } from 'src/generated/prisma/internal/prismaNamespace';
@@ -260,6 +264,100 @@ export class EntriesService {
         success: true,
         message: 'Successfully left queue',
         displayNumber: entry.displayNumber,
+      };
+    });
+  }
+
+  async callEntry(entryId: string, hostId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const entry = await tx.queueEntry.findUniqueOrThrow({
+        where: { id: entryId },
+        include: {
+          queue: {
+            select: { hostId: true },
+          },
+        },
+      });
+
+      // Authorization: Only queue owner can call
+      if (entry.queue.hostId !== hostId) {
+        throw new ForbiddenException('You do not own this queue');
+      }
+
+      // Validate state transition
+      if (entry.status !== 'WAITING') {
+        throw new BadRequestException(
+          `Cannot call customer with status: ${entry.status}`,
+        );
+      }
+
+      const updated = await tx.queueEntry.update({
+        where: { id: entryId },
+        data: {
+          status: 'CALLED',
+          calledAt: new Date(),
+        },
+        select: {
+          id: true,
+          displayNumber: true,
+          customerName: true,
+          position: true,
+          queueId: true,
+        },
+      });
+
+      // TODO: Send push notification to customer
+      // this.queuesGateway.notifyCustomerCalled(entryId);
+
+      return updated;
+    });
+  }
+
+  async serveEntry(entryId: string, hostId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const entry = await tx.queueEntry.findUniqueOrThrow({
+        where: { id: entryId },
+        include: {
+          queue: {
+            select: { hostId: true },
+          },
+        },
+      });
+
+      // Authorization
+      if (entry.queue.hostId !== hostId) {
+        throw new ForbiddenException('You do not own this queue');
+      }
+
+      // Validate state transition (must be called first)
+      if (entry.status !== 'CALLED') {
+        throw new BadRequestException(
+          `Customer must be called before serving. Current status: ${entry.status}`,
+        );
+      }
+
+      // Mark as served
+      const updated = await tx.queueEntry.update({
+        where: { id: entryId },
+        data: {
+          status: 'SERVED',
+          servedAt: new Date(),
+        },
+        select: {
+          id: true,
+          displayNumber: true,
+          queueId: true,
+        },
+      });
+
+      // No need to shift positions - customer already removed from active queue
+
+      // TODO: Broadcast update
+      // this.queuesGateway.notifyPositionUpdate(updated.queueId);
+
+      return {
+        success: true,
+        message: `Served customer ${updated.displayNumber}`,
       };
     });
   }
