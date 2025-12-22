@@ -308,9 +308,13 @@ export class EntriesService {
 
         // Validate state transition
         if (entry.status !== 'WAITING') {
-          throw new BadRequestException(
-            `Cannot call customer with status: ${entry.status}`,
-          );
+          if (entry.status === 'CALLED') {
+            return { qrCode: entry.queue.qrCode };
+          } else {
+            throw new BadRequestException(
+              `Cannot call customer with status: ${entry.status}`,
+            );
+          }
         }
 
         const updated = await tx.queueEntry.update({
@@ -328,18 +332,13 @@ export class EntriesService {
           },
         });
 
-        this.eventEmitter.emit('entry.updated', {
-          type: 'STATUS_CHANGE',
-          qrCode: entry.queue.qrCode,
-          sessionToken: entryId,
-        } as EntryEventDto);
-
         return { ...updated, qrCode: entry.queue.qrCode };
       })
       .then(({ qrCode, ...data }) => {
         this.eventEmitter.emit('entry.updated', {
+          type: 'CALL',
           qrCode,
-          type: 'QUEUE_ADVANCED',
+          sessionToken: entryId,
         } as EntryEventDto);
 
         return data;
