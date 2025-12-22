@@ -6,6 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { QueuesModule } from './queues/queues.module';
 import { EntriesModule } from './entries/entries.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { EntriesModule } from './entries/entries.module';
     AuthModule,
     QueuesModule,
     EntriesModule,
+    EventEmitterModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [AppService],
