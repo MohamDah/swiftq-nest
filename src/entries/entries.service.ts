@@ -10,10 +10,15 @@ import {
   generateDisplayNumber,
   calculateActualPosition,
 } from 'src/shared/utils';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EntryEventDto } from './dto/entry-event.dto';
 
 @Injectable()
 export class EntriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   private async generateUniqueDisplayNumber(
     queueId: string,
@@ -264,7 +269,7 @@ export class EntriesService {
         where: { id: entryId },
         include: {
           queue: {
-            select: { hostId: true },
+            select: { hostId: true, qrCode: true },
           },
         },
       });
@@ -296,8 +301,11 @@ export class EntriesService {
         },
       });
 
-      // TODO: Send push notification to customer
-      // this.queuesGateway.notifyCustomerCalled(entryId);
+      this.eventEmitter.emit('entry.updated', {
+        type: 'STATUS_CHANGE',
+        qrCode: entry.queue.qrCode,
+        sessionToken: entryId,
+      } as EntryEventDto);
 
       return updated;
     });
@@ -309,7 +317,7 @@ export class EntriesService {
         where: { id: entryId },
         include: {
           queue: {
-            select: { hostId: true },
+            select: { hostId: true, qrCode: true },
           },
         },
       });
@@ -340,14 +348,10 @@ export class EntriesService {
         },
       });
 
-      // ✅ Positions automatically shift because we calculate dynamically
-      // When getEntryStatus() is called:
-      //   - It counts only WAITING/CALLED entries with position < myPosition
-      //   - SERVED entries are excluded from the count
-      //   - So everyone automatically moves up!
-
-      // TODO: Broadcast update so all customers see new positions
-      // this.queuesGateway.notifyPositionUpdate(updated.queueId);
+      this.eventEmitter.emit('entry.updated', {
+        qrCode: entry.queue.qrCode,
+        type: 'QUEUE_ADVANCED',
+      } as EntryEventDto);
 
       return {
         success: true,
