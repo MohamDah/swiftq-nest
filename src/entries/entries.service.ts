@@ -10,15 +10,13 @@ import {
   generateDisplayNumber,
   calculateActualPosition,
 } from 'src/shared/utils';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { EntryEventDto } from './dto/entry-event.dto';
-import { QueueEventDto } from 'src/queues/dto/queue-event.dto';
+import { EventsService } from 'src/events/events.service';
 
 @Injectable()
 export class EntriesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly eventsService: EventsService,
   ) {}
 
   private async generateUniqueDisplayNumber(
@@ -153,10 +151,7 @@ export class EntriesService {
         return { ...entry, qrCode };
       })
       .then((data) => {
-        this.eventEmitter.emit('queue.updated', {
-          type: 'ENTRY_JOINED',
-          queueId: data.queueId,
-        } as QueueEventDto);
+        this.eventsService.emitEntryJoined(data.queueId);
         return data;
       });
   }
@@ -275,16 +270,7 @@ export class EntriesService {
         };
       })
       .then(({ qrCode, queueId, ...data }) => {
-        this.eventEmitter.emit('entry.updated', {
-          qrCode,
-          type: 'QUEUE_ADVANCED',
-        } as EntryEventDto);
-
-        this.eventEmitter.emit('queue.updated', {
-          queueId,
-          type: 'QUEUE_ADVANCED',
-        } as QueueEventDto);
-
+        this.eventsService.emitQueueAdvanced(queueId, qrCode);
         return data;
       });
   }
@@ -306,41 +292,36 @@ export class EntriesService {
           throw new ForbiddenException('You do not own this queue');
         }
 
-        // Validate state transition
-        if (entry.status !== 'WAITING') {
-          if (entry.status === 'CALLED') {
-            return { qrCode: entry.queue.qrCode };
-          } else {
-            throw new BadRequestException(
-              `Cannot call customer with status: ${entry.status}`,
-            );
-          }
+        if (entry.status !== 'WAITING' && entry.status !== 'CALLED') {
+          throw new BadRequestException(
+            `Cannot call customer with status: ${entry.status}`,
+          );
         }
 
-        const updated = await tx.queueEntry.update({
-          where: { id: entryId },
-          data: {
-            status: 'CALLED',
-            calledAt: new Date(),
-          },
-          select: {
-            id: true,
-            displayNumber: true,
-            customerName: true,
-            position: true,
-            queueId: true,
-          },
-        });
+        if (entry.status === 'WAITING') {
+          const updated = await tx.queueEntry.update({
+            where: { id: entryId },
+            data: {
+              status: 'CALLED',
+              calledAt: new Date(),
+            },
+            select: {
+              id: true,
+              displayNumber: true,
+              customerName: true,
+              position: true,
+              queueId: true,
+            },
+          });
 
-        return { ...updated, qrCode: entry.queue.qrCode };
+          return { ...updated, qrCode: entry.queue.qrCode };
+        } else {
+          return { qrCode: entry.queue.qrCode };
+        }
       })
-      .then(({ qrCode, ...data }) => {
-        this.eventEmitter.emit('entry.updated', {
-          type: 'CALL',
-          qrCode,
-          sessionToken: entryId,
-        } as EntryEventDto);
-
+      .then((result) => {
+        const { qrCode, ...data } = result;
+        this.eventsService.emitEntryCall(qrCode, entryId);
         return data;
       });
   }
@@ -387,14 +368,11 @@ export class EntriesService {
           success: true,
           message: `Served customer ${updated.displayNumber}`,
           qrCode: entry.queue.qrCode,
+          queueId: entry.queueId,
         };
       })
-      .then(({ qrCode, ...data }) => {
-        this.eventEmitter.emit('entry.updated', {
-          qrCode,
-          type: 'QUEUE_ADVANCED',
-        } as EntryEventDto);
-
+      .then(({ qrCode, queueId, ...data }) => {
+        this.eventsService.emitQueueAdvanced(queueId, qrCode);
         return data;
       });
   }

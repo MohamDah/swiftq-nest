@@ -14,7 +14,7 @@ import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { HostDto } from 'src/auth/dto/host.dto';
 import { filter, fromEvent, map, Observable } from 'rxjs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { EntryEventDto } from './dto/entry-event.dto';
+import { EVENT_NAMES, EntryUpdatedPayload } from 'src/shared/events';
 
 @Controller('entries')
 export class EntriesController {
@@ -57,19 +57,18 @@ export class EntriesController {
     );
     if (!hasEntry) throw new UnauthorizedException();
 
-    return fromEvent(this.eventEmitter, 'entry.updated').pipe(
-      filter((payload: EntryEventDto) => {
+    return fromEvent(this.eventEmitter, EVENT_NAMES.ENTRY_UPDATED).pipe(
+      filter((payload: EntryUpdatedPayload) => {
         const isCorrectQueue = payload.qrCode === qrCode;
-
         const isForThisCustomer = payload.sessionToken
           ? payload.sessionToken === sessionToken
           : true;
-
         return isCorrectQueue && isForThisCustomer;
       }),
       map((payload) => ({
         data: {
           type: payload.type,
+          ...payload.data,
         },
       })),
     );

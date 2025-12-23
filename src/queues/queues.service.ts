@@ -7,10 +7,15 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateQueueDto } from './dto/create-queue.dto';
 import { generateId, enrichEntriesWithPositions } from 'src/shared/utils';
 import { UpdateQueueDto } from './dto/update-queue.dto';
+import { EventsService } from 'src/events/events.service';
+import { QueueEventType } from 'src/shared/events';
 
 @Injectable()
 export class QueuesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsService: EventsService,
+  ) {}
 
   private async generateUniqueQRCode(maxAttempts: number = 5): Promise<string> {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -185,10 +190,15 @@ export class QueuesService {
     });
   }
 
-  update(queueId: string, hostId: string, dto: UpdateQueueDto) {
-    return this.prisma.queue.update({
+  async update(queueId: string, hostId: string, dto: UpdateQueueDto) {
+    const queue = await this.prisma.queue.update({
       where: { id: queueId, deletedAt: null, hostId },
       data: dto,
     });
+    this.eventsService.emitQueueUpdate({
+      queueId: queue.id,
+      type: QueueEventType.QUEUE_UPDATED,
+    });
+    return queue;
   }
 }

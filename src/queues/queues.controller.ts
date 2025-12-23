@@ -21,11 +21,10 @@ import { JoinQueueDto } from './dto/join-queue.dto';
 import { UpdateQueueDto } from './dto/update-queue.dto';
 import { EntriesService } from 'src/entries/entries.service';
 import { filter, fromEvent, map, Observable } from 'rxjs';
-import { QueueEventDto } from './dto/queue-event.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import jwt from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
-import { EntryEventDto } from 'src/entries/dto/entry-event.dto';
+import { EVENT_NAMES, QueueUpdatedPayload } from 'src/shared/events';
 
 @Controller('queues')
 export class QueuesController {
@@ -92,18 +91,7 @@ export class QueuesController {
     @CurrentUser() host: HostDto,
     @Body() dto: UpdateQueueDto,
   ) {
-    return this.queuesService.update(id, host.id, dto).then((data) => {
-      this.eventEmitter.emit('entry.updated', {
-        qrCode: data.qrCode,
-        type: 'QUEUE_ADVANCED',
-      } as EntryEventDto);
-      this.eventEmitter.emit('queue.updated', {
-        queueId: id,
-        type: 'QUEUE_ADVANCED',
-      } as QueueEventDto);
-
-      return data;
-    });
+    return this.queuesService.update(id, host.id, dto);
   }
 
   @Sse('updates/:queueId')
@@ -117,13 +105,12 @@ export class QueuesController {
       throw new UnauthorizedException();
     }
 
-    return fromEvent(this.eventEmitter, 'queue.updated').pipe(
-      filter((payload: QueueEventDto) => {
-        return payload.queueId === queueId;
-      }),
+    return fromEvent(this.eventEmitter, EVENT_NAMES.QUEUE_UPDATED).pipe(
+      filter((payload: QueueUpdatedPayload) => payload.queueId === queueId),
       map((payload) => ({
         data: {
           type: payload.type,
+          ...payload.data,
         },
       })),
     );
