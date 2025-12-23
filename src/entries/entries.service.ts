@@ -292,32 +292,28 @@ export class EntriesService {
           throw new ForbiddenException('You do not own this queue');
         }
 
-        if (entry.status !== 'WAITING' && entry.status !== 'CALLED') {
+        if (entry.status !== 'WAITING') {
           throw new BadRequestException(
             `Cannot call customer with status: ${entry.status}`,
           );
         }
 
-        if (entry.status === 'WAITING') {
-          const updated = await tx.queueEntry.update({
-            where: { id: entryId },
-            data: {
-              status: 'CALLED',
-              calledAt: new Date(),
-            },
-            select: {
-              id: true,
-              displayNumber: true,
-              customerName: true,
-              position: true,
-              queueId: true,
-            },
-          });
+        const updated = await tx.queueEntry.update({
+          where: { id: entryId },
+          data: {
+            status: 'CALLED',
+            calledAt: new Date(),
+          },
+          select: {
+            id: true,
+            displayNumber: true,
+            customerName: true,
+            position: true,
+            queueId: true,
+          },
+        });
 
-          return { ...updated, qrCode: entry.queue.qrCode };
-        } else {
-          return { qrCode: entry.queue.qrCode };
-        }
+        return { ...updated, qrCode: entry.queue.qrCode };
       })
       .then((result) => {
         const { qrCode, ...data } = result;

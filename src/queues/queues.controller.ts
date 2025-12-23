@@ -52,6 +52,7 @@ export class QueuesController {
     return this.queuesService.findOnePublic(qrCode);
   }
 
+  @AuthReq()
   @Get(':id/manage')
   findOneManage(
     @Param('id', ParseUUIDPipe) id: string,
