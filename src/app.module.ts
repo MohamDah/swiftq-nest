@@ -8,16 +8,18 @@ import { QueuesModule } from './queues/queues.module';
 import { EntriesModule } from './entries/entries.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { EventsModule } from './events/events.module';
+import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
     PrismaModule,
     ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot(),
+    EventsModule,
+    PushModule,
     AuthModule,
     QueuesModule,
     EntriesModule,
-    EventEmitterModule.forRoot(),
-    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

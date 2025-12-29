@@ -11,12 +11,14 @@ import {
   calculateActualPosition,
 } from 'src/shared/utils';
 import { EventsService } from 'src/events/events.service';
+import { PushService } from 'src/push/push.service';
 
 @Injectable()
 export class EntriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
+    private readonly pushService: PushService,
   ) {}
 
   private async generateUniqueDisplayNumber(
@@ -183,6 +185,7 @@ export class EntriesService {
             },
           },
         },
+        pushSubscription: { select: { id: true } },
       },
     });
 
@@ -201,6 +204,7 @@ export class EntriesService {
       joinedAt: entry.joinedAt,
       calledAt: entry.calledAt,
       peopleAhead: actualPosition - 1,
+      hasNotifications: !!entry.pushSubscription,
       queue: {
         id: entry.queue.id,
         qrCode: entry.queue.qrCode,
@@ -267,10 +271,14 @@ export class EntriesService {
           displayNumber: entry.displayNumber,
           qrCode: entry.queue.qrCode,
           queueId: entry.queueId,
+          entryId: entry.id,
         };
       })
-      .then(({ qrCode, queueId, ...data }) => {
+      .then(({ qrCode, queueId, entryId, ...data }) => {
         this.eventsService.emitQueueAdvanced(queueId, qrCode);
+
+        void this.pushService.deleteSubscriptionByEntry(entryId);
+
         return data;
       });
   }
@@ -317,7 +325,19 @@ export class EntriesService {
       })
       .then((result) => {
         const { qrCode, ...data } = result;
+
+        // Emit SSE event for real-time updates
         this.eventsService.emitEntryCall(qrCode, entryId);
+
+        // Send push notification (fire and forget)
+        void this.pushService.sendNotification(entryId, {
+          title: "You're being called!",
+          body: `${data.displayNumber}${data.customerName ? ` - ${data.customerName}` : ''} - Please proceed to the counter`,
+          data: {
+            qrCode: qrCode,
+          },
+        });
+
         return data;
       });
   }
@@ -365,10 +385,68 @@ export class EntriesService {
           message: `Served customer ${updated.displayNumber}`,
           qrCode: entry.queue.qrCode,
           queueId: entry.queueId,
+          entryId: updated.id,
         };
       })
-      .then(({ qrCode, queueId, ...data }) => {
+      .then(({ qrCode, queueId, entryId, ...data }) => {
         this.eventsService.emitQueueAdvanced(queueId, qrCode);
+
+        void this.pushService.deleteSubscriptionByEntry(entryId);
+
+        return data;
+      });
+  }
+
+  async markNoShow(entryId: string, hostId: string) {
+    return this.prisma
+      .$transaction(async (tx) => {
+        const entry = await tx.queueEntry.findUniqueOrThrow({
+          where: { id: entryId },
+          include: {
+            queue: {
+              select: { hostId: true, qrCode: true },
+            },
+          },
+        });
+
+        // Authorization
+        if (entry.queue.hostId !== hostId) {
+          throw new ForbiddenException('You do not own this queue');
+        }
+
+        // Validate state transition (must be CALLED to mark as NO_SHOW)
+        if (entry.status !== 'CALLED') {
+          throw new BadRequestException(
+            `Can only mark called customers as no-show. Current status: ${entry.status}`,
+          );
+        }
+
+        // Mark as NO_SHOW
+        const updated = await tx.queueEntry.update({
+          where: { id: entryId },
+          data: {
+            status: 'NO_SHOW',
+          },
+          select: {
+            id: true,
+            displayNumber: true,
+            queueId: true,
+          },
+        });
+
+        return {
+          success: true,
+          message: `Marked customer ${updated.displayNumber} as no-show`,
+          qrCode: entry.queue.qrCode,
+          queueId: entry.queueId,
+          entryId: updated.id,
+        };
+      })
+      .then(({ qrCode, queueId, entryId, ...data }) => {
+        this.eventsService.emitQueueAdvanced(queueId, qrCode);
+
+        void this.pushService.deleteSubscriptionByEntry(entryId);
+
         return data;
       });
   }

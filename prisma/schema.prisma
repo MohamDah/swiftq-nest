@@ -76,11 +76,27 @@ model QueueEntry {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
-  queue Queue @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  queue             Queue             @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  pushSubscription PushSubscription?
 
   @@index([queueId, status, position])
   @@index([expiresAt]) // For cleanup cron job
   @@map("queue_entries")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  entryId   String   @unique
+  fcmToken  String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entry QueueEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId])
+  @@index([fcmToken])
+  @@map("push_subscriptions")
 }
 
 // QueueHistory model - Daily analytics and audit trail

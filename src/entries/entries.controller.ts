@@ -46,6 +46,15 @@ export class EntriesController {
     return this.entriesService.serveEntry(entryId, host.id);
   }
 
+  @AuthReq()
+  @Post(':entryId/no-show')
+  markNoShow(
+    @Param('entryId', ParseUUIDPipe) entryId: string,
+    @CurrentUser() host: HostDto,
+  ) {
+    return this.entriesService.markNoShow(entryId, host.id);
+  }
+
   @Sse('updates/:qrCode/:sessionToken')
   async sse(
     @Param('qrCode') qrCode: string,
