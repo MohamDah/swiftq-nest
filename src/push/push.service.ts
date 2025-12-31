@@ -16,22 +16,18 @@ export class PushService implements OnModuleInit {
 
   onModuleInit() {
     try {
-      const serviceAccountPath = this.config.get<string>(
-        'FIREBASE_SERVICE_ACCOUNT_PATH',
+      const serviceAccountJson = this.config.getOrThrow<string>(
+        'FIREBASE_SERVICE_ACCOUNT_JSON',
       );
 
-      if (!serviceAccountPath) {
-        this.logger.warn(
-          'FIREBASE_SERVICE_ACCOUNT_PATH not configured. Push notifications disabled.',
-        );
-        return;
-      }
+      // Support both file path (local dev) and JSON string (Heroku)
+      const credential = admin.credential.cert(
+        JSON.parse(serviceAccountJson) as Record<string, string>,
+      );
 
       // Initialize Firebase Admin SDK only if not already initialized
       if (admin.apps.length === 0) {
-        admin.initializeApp({
-          credential: admin.credential.cert(serviceAccountPath),
-        });
+        admin.initializeApp({ credential });
         this.logger.log('Firebase Admin SDK initialized successfully');
       } else {
         this.logger.log(
