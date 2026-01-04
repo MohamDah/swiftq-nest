@@ -20,12 +20,10 @@ export class PushService implements OnModuleInit {
         'FIREBASE_SERVICE_ACCOUNT_JSON',
       );
 
-      // Support both file path (local dev) and JSON string (Heroku)
       const credential = admin.credential.cert(
         JSON.parse(serviceAccountJson) as Record<string, string>,
       );
 
-      // Initialize Firebase Admin SDK only if not already initialized
       if (admin.apps.length === 0) {
         admin.initializeApp({ credential });
         this.logger.log('Firebase Admin SDK initialized successfully');
@@ -104,7 +102,6 @@ export class PushService implements OnModuleInit {
           `Push sent successfully to token ending in ...${subscription.fcmToken.slice(-8)}`,
         );
       } catch (error: any) {
-        // Handle invalid/expired tokens
         if (
           error instanceof FirebaseMessagingError &&
           (error.code === 'messaging/invalid-registration-token' ||
@@ -133,9 +130,6 @@ export class PushService implements OnModuleInit {
     }
   }
 
-  /**
-   * Unsubscribe by FCM token
-   */
   async unsubscribe(fcmToken: string): Promise<{ success: boolean }> {
     try {
       await this.prisma.pushSubscription.delete({
@@ -149,9 +143,6 @@ export class PushService implements OnModuleInit {
     }
   }
 
-  /**
-   * Delete subscription by entry ID (for cleanup)
-   */
   async deleteSubscriptionByEntry(entryId: string): Promise<void> {
     try {
       const result = await this.prisma.pushSubscription.deleteMany({
@@ -171,9 +162,6 @@ export class PushService implements OnModuleInit {
     }
   }
 
-  /**
-   * Get subscription status for an entry
-   */
   async getSubscriptionStatus(
     entryId: string,
   ): Promise<{ isSubscribed: boolean }> {
