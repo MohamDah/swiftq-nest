@@ -52,7 +52,7 @@ export class EntriesService {
     }
 
     const queue = await this.prisma.queue.findUnique({
-      where: { qrCode },
+      where: { qrCode, deletedAt: null },
       select: { id: true },
     });
 

@@ -22,7 +22,7 @@ export class QueuesService {
       const code = generateId();
 
       const existing = await this.prisma.queue.findUnique({
-        where: { qrCode: code },
+        where: { qrCode: code, deletedAt: null },
         select: { id: true },
       });
 
@@ -69,7 +69,7 @@ export class QueuesService {
 
   async findOnePublic(qrCode: string) {
     const queue = await this.prisma.queue.findUniqueOrThrow({
-      where: { qrCode },
+      where: { qrCode, deletedAt: null },
       select: {
         name: true,
         description: true,
@@ -109,7 +109,7 @@ export class QueuesService {
 
   async findOneManage(id: string, hostId: string) {
     const queue = await this.prisma.queue.findUniqueOrThrow({
-      where: { id, hostId },
+      where: { id, hostId, deletedAt: null },
       include: {
         entries: {
           where: { status: { in: ['WAITING', 'CALLED'] } },
