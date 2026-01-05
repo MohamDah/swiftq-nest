@@ -132,7 +132,7 @@ export class PushService implements OnModuleInit {
 
   async unsubscribe(fcmToken: string): Promise<{ success: boolean }> {
     try {
-      await this.prisma.pushSubscription.delete({
+      await this.prisma.pushSubscription.deleteMany({
         where: { fcmToken },
       });
       this.logger.log(`Unsubscribed token ending in ...${fcmToken.slice(-8)}`);
