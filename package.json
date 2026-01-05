@@ -11,6 +11,7 @@
   },
   "scripts": {
     "build": "nest build",
+    "postinstall": "prisma generate",
     "postbuild": "npx prisma generate && npx prisma migrate deploy",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
