@@ -52,7 +52,7 @@ export class QueuesService {
     });
   }
 
-  findAll(hostId: string) {
+  getAll(hostId: string) {
     return this.prisma.queue.findMany({
       where: { hostId, deletedAt: null },
       include: {
@@ -67,7 +67,7 @@ export class QueuesService {
     });
   }
 
-  async findOnePublic(qrCode: string) {
+  async getOnePublic(qrCode: string) {
     const queue = await this.prisma.queue.findUniqueOrThrow({
       where: { qrCode, deletedAt: null },
       select: {
@@ -107,7 +107,7 @@ export class QueuesService {
     };
   }
 
-  async findOneManage(id: string, hostId: string) {
+  async getOneManage(id: string, hostId: string) {
     const queue = await this.prisma.queue.findUniqueOrThrow({
       where: { id, hostId, deletedAt: null },
       include: {
@@ -135,7 +135,6 @@ export class QueuesService {
       },
     });
 
-    // ✅ Enrich entries with actual positions
     const enrichedEntries = enrichEntriesWithPositions(queue.entries);
 
     return {

@@ -16,11 +16,11 @@ datasource db {
 
 // Enum for queue entry status tracking
 enum QueueEntryStatus {
-  WAITING // Customer is waiting in queue
-  CALLED // Customer has been called, approaching counter
-  SERVED // Customer has been served
-  CANCELLED // Customer cancelled/left queue
-  NO_SHOW // Customer was called but didn't show up
+  WAITING 
+  CALLED
+  SERVED
+  CANCELLED
+  NO_SHOW
 }
 
 // Host model - Authenticated service providers who create and manage queues
@@ -32,7 +32,6 @@ model Host {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // Relations
   queues Queue[]
 
   @@map("hosts")
@@ -54,7 +53,6 @@ model Queue {
   hostId  String
   host    Host           @relation(fields: [hostId], references: [id], onDelete: Cascade)
   entries QueueEntry[]
-  history QueueHistory[]
 
   @@index([hostId])
   @@index([qrCode])
@@ -62,12 +60,12 @@ model Queue {
 }
 
 model QueueEntry {
-  id                String           @id @default(uuid()) // Serves as anonymous session token
+  id                String           @id @default(uuid())
   queueId           String
   customerName      String?
-  position          Int // Current position in queue (1, 2, 3...)
+  position          Int 
   status            QueueEntryStatus @default(WAITING)
-  estimatedWaitTime Int? // In minutes, calculated dynamically
+  estimatedWaitTime Int?
   displayNumber     String
   joinedAt          DateTime         @default(now())
   calledAt          DateTime?
@@ -80,7 +78,6 @@ model QueueEntry {
   pushSubscription PushSubscription?
 
   @@index([queueId, status, position])
-  @@index([expiresAt]) // For cleanup cron job
   @@map("queue_entries")
 }
 
@@ -97,25 +94,4 @@ model PushSubscription {
   @@index([entryId])
   @@index([fcmToken])
   @@map("push_subscriptions")
-}
-
-// QueueHistory model - Daily analytics and audit trail
-model QueueHistory {
-  id                 String   @id @default(uuid())
-  queueId            String
-  date               DateTime @db.Date // Daily aggregation
-  totalServed        Int      @default(0)
-  averageWaitTime    Float? // In minutes
-  peakQueueSize      Int      @default(0)
-  totalCancellations Int      @default(0)
-  totalNoShows       Int      @default(0)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  // Relations
-  queue Queue @relation(fields: [queueId], references: [id], onDelete: Cascade)
-
-  @@unique([queueId, date]) // One record per queue per day
-  @@index([queueId, date]) // Fast analytics retrieval
-  @@map("queue_history")
 }

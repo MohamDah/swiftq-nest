@@ -43,22 +43,22 @@ export class QueuesController {
 
   @AuthReq()
   @Get()
-  findAll(@CurrentUser() host: HostDto) {
-    return this.queuesService.findAll(host.id);
+  getAll(@CurrentUser() host: HostDto) {
+    return this.queuesService.getAll(host.id);
   }
 
   @Get(':qrCode')
-  findOnePublic(@Param('qrCode') qrCode: string) {
-    return this.queuesService.findOnePublic(qrCode);
+  getOnePublic(@Param('qrCode') qrCode: string) {
+    return this.queuesService.getOnePublic(qrCode);
   }
 
   @AuthReq()
   @Get(':id/manage')
-  findOneManage(
+  getOneManage(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() host: HostDto,
   ) {
-    return this.queuesService.findOneManage(id, host.id);
+    return this.queuesService.getOneManage(id, host.id);
   }
 
   @Get(':qrCode/check-entry')
