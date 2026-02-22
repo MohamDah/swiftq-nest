@@ -1,5 +1,6 @@
 import {
   IsEmail,
+  IsNotEmpty,
   IsString,
   IsStrongPassword,
   MinLength,
@@ -12,6 +13,7 @@ export class CreateHostDto implements Prisma.HostCreateInput {
   businessName: string;
 
   @IsEmail()
+  @IsNotEmpty()
   email: string;
 
   @IsStrongPassword({
