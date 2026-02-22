@@ -102,8 +102,6 @@ export class QueuesService {
       currentSize: queue._count.entries,
       maxSize: queue.maxSize,
       averageServiceTime: queue.averageServiceTime,
-      estimatedWaitTime: queue._count.entries * queue.averageServiceTime,
-      isFull: queue.maxSize ? queue._count.entries >= queue.maxSize : false,
     };
   }
 

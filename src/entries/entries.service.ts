@@ -68,18 +68,11 @@ export class EntriesService {
       },
       select: {
         id: true,
-        displayNumber: true,
-        position: true,
-        status: true,
-        estimatedWaitTime: true,
-        customerName: true,
-        joinedAt: true,
       },
     });
 
     return {
       hasEntry: !!entry,
-      entry,
     };
   }
 
