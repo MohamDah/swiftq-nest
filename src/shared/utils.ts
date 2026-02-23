@@ -35,18 +35,15 @@ export function calculateActualPosition(
 }
 
 /**
- * Enrich entries with actual positions
- * Transforms raw entries into display-ready format
+ * normalize the position numbers of entries
  */
-export function enrichEntriesWithPositions<T extends { position: number }>(
+export function normalizeEntriesPositions<T extends { position: number }>(
   entries: T[],
-): Array<T & { actualPosition: number }> {
-  // Sort by stored position
+): T[] {
   const sorted = [...entries].sort((a, b) => a.position - b.position);
 
-  // Assign actual positions (1, 2, 3...)
   return sorted.map((entry, index) => ({
     ...entry,
-    actualPosition: index + 1,
+    position: index + 1,
   }));
 }

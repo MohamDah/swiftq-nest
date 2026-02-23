@@ -65,7 +65,6 @@ model QueueEntry {
   customerName      String?
   position          Int 
   status            QueueEntryStatus @default(WAITING)
-  estimatedWaitTime Int?
   displayNumber     String
   joinedAt          DateTime         @default(now())
   calledAt          DateTime?

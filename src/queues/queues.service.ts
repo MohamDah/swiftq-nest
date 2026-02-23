@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateQueueDto } from './dto/create-queue.dto';
-import { generateId, enrichEntriesWithPositions } from 'src/shared/utils';
+import { generateId, normalizeEntriesPositions } from 'src/shared/utils';
 import { UpdateQueueDto } from './dto/update-queue.dto';
 import { EventsService } from 'src/events/events.service';
 import { QueueEventType } from 'src/shared/events';
@@ -118,7 +118,6 @@ export class QueuesService {
             customerName: true,
             position: true,
             status: true,
-            estimatedWaitTime: true,
             joinedAt: true,
             calledAt: true,
           },
@@ -133,20 +132,13 @@ export class QueuesService {
       },
     });
 
-    const enrichedEntries = enrichEntriesWithPositions(queue.entries);
+    const normalizedEntries = normalizeEntriesPositions(queue.entries);
 
     return {
       ...queue,
-      entries: enrichedEntries.map((entry) => ({
-        id: entry.id,
-        displayNumber: entry.displayNumber,
-        customerName: entry.customerName,
-        status: entry.status,
-        joinedAt: entry.joinedAt,
-        calledAt: entry.calledAt,
-        position: entry.actualPosition,
-        storedPosition: entry.position,
-        estimatedWaitTime: entry.actualPosition * queue.averageServiceTime,
+      entries: normalizedEntries.map((entry) => ({
+        ...entry,
+        estimatedWaitTime: entry.position * queue.averageServiceTime,
       })),
     };
   }

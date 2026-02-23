@@ -114,7 +114,6 @@ export class EntriesService {
         }
 
         const position = currentSize + 1;
-        const estimatedWaitTime = position * queue.averageServiceTime;
 
         // Generate unique display number
         const displayNumber = await this.generateUniqueDisplayNumber(
@@ -128,7 +127,6 @@ export class EntriesService {
             displayNumber,
             customerName: dto.customerName,
             position,
-            estimatedWaitTime,
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
           },
           select: {
@@ -136,7 +134,6 @@ export class EntriesService {
             displayNumber: true,
             customerName: true,
             position: true,
-            estimatedWaitTime: true,
             joinedAt: true,
             status: true,
             queueId: true,
@@ -158,7 +155,6 @@ export class EntriesService {
         id: true,
         position: true, // Original position
         status: true,
-        estimatedWaitTime: true,
         customerName: true,
         displayNumber: true,
         joinedAt: true,
@@ -191,7 +187,6 @@ export class EntriesService {
       sessionToken: entry.id,
       position: actualPosition,
       status: entry.status,
-      estimatedWaitTime: actualPosition * entry.queue.averageServiceTime,
       customerName: entry.customerName,
       displayNumber: entry.displayNumber,
       joinedAt: entry.joinedAt,
@@ -255,8 +250,6 @@ export class EntriesService {
             position: { decrement: 1 },
           },
         });
-
-        await this.recalculateWaitTimes(entry.queueId, tx);
 
         return {
           success: true,
@@ -442,34 +435,5 @@ export class EntriesService {
 
         return data;
       });
-  }
-
-  // HELPERS
-  private async recalculateWaitTimes(queueId: string, tx: TransactionClient) {
-    const queue = await tx.queue.findUniqueOrThrow({
-      where: { id: queueId },
-      select: { averageServiceTime: true },
-    });
-
-    const waitingCustomers = await tx.queueEntry.findMany({
-      where: {
-        queueId,
-        status: { in: ['WAITING', 'CALLED'] },
-      },
-      orderBy: { position: 'asc' },
-      select: { id: true, position: true },
-    });
-
-    // Recalculate based on actual position in line
-    let actualPosition = 1;
-    for (const customer of waitingCustomers) {
-      await tx.queueEntry.update({
-        where: { id: customer.id },
-        data: {
-          estimatedWaitTime: actualPosition * queue.averageServiceTime,
-        },
-      });
-      actualPosition++;
-    }
   }
 }
