@@ -235,21 +235,11 @@ export class EntriesService {
           where: { id: entryId },
           data: {
             status: 'CANCELLED',
-            // Keep position/displayNumber for audit trail
           },
         });
 
         // Shift positions down for everyone behind
-        await tx.queueEntry.updateMany({
-          where: {
-            queueId: entry.queueId,
-            position: { gt: entry.position },
-            status: { in: ['WAITING', 'CALLED'] },
-          },
-          data: {
-            position: { decrement: 1 },
-          },
-        });
+        await this.shiftPositionsDown(tx, entry.queueId, entry.position);
 
         return {
           success: true,
@@ -366,6 +356,9 @@ export class EntriesService {
           },
         });
 
+        // Shift positions down
+        await this.shiftPositionsDown(tx, entry.queueId, entry.position);
+
         return {
           success: true,
           message: `Served customer ${updated.displayNumber}`,
@@ -420,6 +413,9 @@ export class EntriesService {
           },
         });
 
+        // Shift positions down
+        await this.shiftPositionsDown(tx, entry.queueId, entry.position);
+
         return {
           success: true,
           message: `Marked customer ${updated.displayNumber} as no-show`,
@@ -435,5 +431,22 @@ export class EntriesService {
 
         return data;
       });
+  }
+
+  private async shiftPositionsDown(
+    tx: TransactionClient,
+    queueId: string,
+    fromPosition: number,
+  ) {
+    await tx.queueEntry.updateMany({
+      where: {
+        queueId,
+        position: { gt: fromPosition },
+        status: { in: ['WAITING', 'CALLED'] },
+      },
+      data: {
+        position: { decrement: 1 },
+      },
+    });
   }
 }

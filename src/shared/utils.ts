@@ -33,17 +33,3 @@ export function calculateActualPosition(
 
   return peopleAhead + 1;
 }
-
-/**
- * normalize the position numbers of entries
- */
-export function normalizeEntriesPositions<T extends { position: number }>(
-  entries: T[],
-): T[] {
-  const sorted = [...entries].sort((a, b) => a.position - b.position);
-
-  return sorted.map((entry, index) => ({
-    ...entry,
-    position: index + 1,
-  }));
-}
