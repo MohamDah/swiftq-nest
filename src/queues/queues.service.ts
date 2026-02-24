@@ -47,7 +47,7 @@ export class QueuesService {
       data: {
         ...dto,
         qrCode,
-        hostId,
+        host: { connect: { id: hostId } },
       },
     });
   }

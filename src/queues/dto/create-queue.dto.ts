@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsNumber,
@@ -16,19 +17,23 @@ export class CreateQueueDto implements Omit<
   @MinLength(3)
   name: string;
 
+  @Transform(({ value }): any => value ?? undefined)
   @IsOptional()
   @IsBoolean()
   requireNames?: boolean;
 
+  @Transform(({ value }): any => value ?? undefined)
   @IsOptional()
   @IsNumber()
   @IsPositive()
   averageServiceTime?: number | undefined;
 
+  @Transform(({ value }): any => value ?? undefined)
   @IsOptional()
   @IsString()
   description?: string | null | undefined;
 
+  @Transform(({ value }): any => value ?? undefined)
   @IsOptional()
   @IsNumber()
   @IsPositive()

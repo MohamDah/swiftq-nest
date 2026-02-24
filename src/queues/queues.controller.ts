@@ -75,7 +75,7 @@ export class QueuesController {
   }
 
   @Post(':qrCode/join')
-  joinQueue(@Param('qrCode') qrCode: string, @Body() dto: JoinQueueDto) {
+  joinQueue(@Param('qrCode') qrCode: string, @Body() dto: JoinQueueDto = {}) {
     return this.entriesService.joinQueue(dto, qrCode);
   }
 
