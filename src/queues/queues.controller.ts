@@ -25,6 +25,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import jwt from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
 import { EVENT_NAMES, QueueUpdatedPayload } from 'src/shared/events';
+import { AnalyticsQuery as AnalyticsQueryDto } from './dto/analytics-query.dto';
+import { AnalyticsDto } from './dto/analytics.dto';
 
 @Controller('queues')
 export class QueuesController {
@@ -45,6 +47,15 @@ export class QueuesController {
   @Get()
   getAll(@CurrentUser() host: HostDto) {
     return this.queuesService.getAll(host.id);
+  }
+
+  @AuthReq()
+  @Get('analytics')
+  getAnalytics(
+    @CurrentUser() host: HostDto,
+    @Query() { filter }: AnalyticsQueryDto,
+  ): Promise<AnalyticsDto> {
+    return this.queuesService.getAnalytics(host.id, filter);
   }
 
   @Get(':qrCode')

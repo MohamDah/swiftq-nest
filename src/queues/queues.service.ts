@@ -9,6 +9,10 @@ import { generateId } from 'src/shared/utils';
 import { UpdateQueueDto } from './dto/update-queue.dto';
 import { EventsService } from 'src/events/events.service';
 import { QueueEventType } from 'src/shared/events';
+import { TimeRangeFilter } from './dto/analytics-query.dto';
+import getDateRange from './utils/getDateRange';
+import { Prisma } from 'src/generated/prisma/client';
+import { AnalyticsDto } from './dto/analytics.dto';
 
 @Injectable()
 export class QueuesService {
@@ -187,5 +191,68 @@ export class QueuesService {
       type: QueueEventType.QUEUE_UPDATED,
     });
     return queue;
+  }
+
+  async getAnalytics(
+    hostId: string,
+    filter: TimeRangeFilter,
+  ): Promise<AnalyticsDto> {
+    const { startDate, endDate } = getDateRange(filter);
+
+    const entriesWhere: Prisma.QueueEntryWhereInput = {
+      queue: { hostId },
+    };
+    if (startDate && endDate) {
+      entriesWhere.joinedAt = { gte: startDate, lte: endDate };
+    }
+
+    const entries = await this.prisma.queueEntry.findMany({
+      where: entriesWhere,
+      select: { queueId: true, joinedAt: true, servedAt: true, status: true },
+    });
+
+    // Calculate peak hour
+    const hourCounts: Record<number, number> = {};
+    for (const ent of entries) {
+      const hour = ent.joinedAt.getHours();
+      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+    }
+    let peakHour = 0;
+    let peakCount = 0;
+    Object.entries(hourCounts).forEach(([hour, count]) => {
+      if (count > peakCount) {
+        peakHour = parseInt(hour);
+        peakCount = count;
+      }
+    });
+
+    // Calculate average wait time
+    const servedEntries = entries.filter(
+      (e) => e.status === 'SERVED' && e.servedAt != null,
+    );
+    const totalWaitTimes = servedEntries.reduce((a, e) => {
+      const waitTimeMs = e.servedAt!.getTime() - e.joinedAt.getTime();
+      const waitTimeMinutes = waitTimeMs / (1000 * 60);
+      return a + waitTimeMinutes;
+    }, 0);
+    const averageWaitTime =
+      Math.round((totalWaitTimes / servedEntries.length) * 10) / 10;
+
+    // Calculate average customers
+    const totalCustomers = entries.length;
+    const totalQueues = new Set(entries.map((e) => e.queueId)).size;
+    const averageCustomers =
+      Math.round((totalCustomers / totalQueues) * 10) / 10;
+
+    return {
+      peakHour: {
+        hour: peakHour,
+        count: peakCount,
+      },
+      averageWaitTime,
+      averageCustomers,
+      totalCustomers,
+      totalQueues,
+    };
   }
 }
