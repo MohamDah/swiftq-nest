@@ -115,12 +115,11 @@ export class QueuesService {
       include: {
         entries: {
           where: { status: { in: ['WAITING', 'CALLED'] } },
-          orderBy: { position: 'asc' },
+          orderBy: { joinedAt: 'asc' },
           select: {
             id: true,
             displayNumber: true,
             customerName: true,
-            position: true,
             status: true,
             joinedAt: true,
             calledAt: true,
@@ -138,9 +137,10 @@ export class QueuesService {
 
     return {
       ...queue,
-      entries: queue.entries.map((entry) => ({
+      entries: queue.entries.map((entry, index) => ({
         ...entry,
-        estimatedWaitTime: entry.position * queue.averageServiceTime,
+        position: index + 1,
+        estimatedWaitTime: (index + 1) * queue.averageServiceTime,
       })),
     };
   }

@@ -6,12 +6,10 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JoinQueueDto } from 'src/queues/dto/join-queue.dto';
 import { TransactionClient } from 'src/generated/prisma/internal/prismaNamespace';
-import {
-  generateDisplayNumber,
-  calculateActualPosition,
-} from 'src/shared/utils';
+import { generateDisplayNumber } from 'src/shared/utils';
 import { EventsService } from 'src/events/events.service';
 import { PushService } from 'src/push/push.service';
+import { QueueEntryStatus } from 'src/generated/prisma/enums';
 
 @Injectable()
 export class EntriesService {
@@ -113,27 +111,22 @@ export class EntriesService {
           throw new BadRequestException('Queue is at maximum capacity');
         }
 
-        const position = currentSize + 1;
-
         // Generate unique display number
         const displayNumber = await this.generateUniqueDisplayNumber(
           queue.id,
           tx,
         );
-
         const entry = await tx.queueEntry.create({
           data: {
             queueId: queue.id,
             displayNumber,
             customerName: dto.customerName,
-            position,
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
           },
           select: {
             id: true,
             displayNumber: true,
             customerName: true,
-            position: true,
             joinedAt: true,
             status: true,
             queueId: true,
@@ -153,7 +146,6 @@ export class EntriesService {
       where: { id: entryId },
       select: {
         id: true,
-        position: true, // Original position
         status: true,
         customerName: true,
         displayNumber: true,
@@ -168,9 +160,16 @@ export class EntriesService {
             averageServiceTime: true,
             isActive: true,
             host: { select: { businessName: true } },
-            entries: {
-              where: { status: { in: ['WAITING', 'CALLED'] } },
-              select: { position: true },
+            _count: {
+              select: {
+                entries: {
+                  where: {
+                    status: {
+                      in: [QueueEntryStatus.WAITING, QueueEntryStatus.CALLED],
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -178,20 +177,25 @@ export class EntriesService {
       },
     });
 
-    const actualPosition = calculateActualPosition(
-      entry.position,
-      entry.queue.entries,
-    );
+    const aheadEntries = await this.prisma.queueEntry.count({
+      where: {
+        queueId: entry.queue.id,
+        status: { in: [QueueEntryStatus.WAITING, QueueEntryStatus.CALLED] },
+        joinedAt: { lt: entry.joinedAt },
+      },
+    });
+
+    const position = aheadEntries + 1;
 
     return {
       sessionToken: entry.id,
-      position: actualPosition,
+      position,
       status: entry.status,
       customerName: entry.customerName,
       displayNumber: entry.displayNumber,
       joinedAt: entry.joinedAt,
       calledAt: entry.calledAt,
-      peopleAhead: actualPosition - 1,
+      peopleAhead: aheadEntries,
       hasNotifications: !!entry.pushSubscription,
       queue: {
         id: entry.queue.id,
@@ -199,7 +203,7 @@ export class EntriesService {
         name: entry.queue.name,
         description: entry.queue.description,
         businessName: entry.queue.host.businessName,
-        totalWaiting: entry.queue.entries.length,
+        totalWaiting: entry.queue._count.entries,
         isActive: entry.queue.isActive,
         averageServiceTime: entry.queue.averageServiceTime,
       },
@@ -214,7 +218,6 @@ export class EntriesService {
           select: {
             id: true,
             queueId: true,
-            position: true,
             status: true,
             displayNumber: true,
             queue: {
@@ -237,9 +240,6 @@ export class EntriesService {
             status: 'CANCELLED',
           },
         });
-
-        // Shift positions down for everyone behind
-        await this.shiftPositionsDown(tx, entry.queueId, entry.position);
 
         return {
           success: true,
@@ -292,7 +292,6 @@ export class EntriesService {
             id: true,
             displayNumber: true,
             customerName: true,
-            position: true,
             queueId: true,
           },
         });
@@ -356,9 +355,6 @@ export class EntriesService {
           },
         });
 
-        // Shift positions down
-        await this.shiftPositionsDown(tx, entry.queueId, entry.position);
-
         return {
           success: true,
           message: `Served customer ${updated.displayNumber}`,
@@ -413,9 +409,6 @@ export class EntriesService {
           },
         });
 
-        // Shift positions down
-        await this.shiftPositionsDown(tx, entry.queueId, entry.position);
-
         return {
           success: true,
           message: `Marked customer ${updated.displayNumber} as no-show`,
@@ -431,22 +424,5 @@ export class EntriesService {
 
         return data;
       });
-  }
-
-  private async shiftPositionsDown(
-    tx: TransactionClient,
-    queueId: string,
-    fromPosition: number,
-  ) {
-    await tx.queueEntry.updateMany({
-      where: {
-        queueId,
-        position: { gt: fromPosition },
-        status: { in: ['WAITING', 'CALLED'] },
-      },
-      data: {
-        position: { decrement: 1 },
-      },
-    });
   }
 }

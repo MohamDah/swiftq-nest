@@ -63,7 +63,6 @@ model QueueEntry {
   id                String           @id @default(uuid())
   queueId           String
   customerName      String?
-  position          Int 
   status            QueueEntryStatus @default(WAITING)
   displayNumber     String
   joinedAt          DateTime         @default(now())
@@ -76,7 +75,7 @@ model QueueEntry {
   queue             Queue             @relation(fields: [queueId], references: [id], onDelete: Cascade)
   pushSubscription PushSubscription?
 
-  @@index([queueId, status, position])
+  @@index([queueId, status, joinedAt])
   @@map("queue_entries")
 }
 
