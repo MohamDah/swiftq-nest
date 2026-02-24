@@ -69,11 +69,6 @@ export class QueuesController {
     return this.entriesService.checkExistingEntry(qrCode, token);
   }
 
-  @Get('entry-status/:entryId')
-  async getEntryStatus(@Param('entryId', ParseUUIDPipe) entryId: string) {
-    return this.entriesService.getEntryStatus(entryId);
-  }
-
   @Post(':qrCode/join')
   joinQueue(@Param('qrCode') qrCode: string, @Body() dto: JoinQueueDto = {}) {
     return this.entriesService.joinQueue(dto, qrCode);

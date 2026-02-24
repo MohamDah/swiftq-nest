@@ -4,6 +4,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Get,
   Sse,
   MessageEvent,
   UnauthorizedException,
@@ -22,6 +23,11 @@ export class EntriesController {
     private readonly entriesService: EntriesService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  @Get(':entryId/status')
+  async getEntryStatus(@Param('entryId', ParseUUIDPipe) entryId: string) {
+    return this.entriesService.getEntryStatus(entryId);
+  }
 
   @Post(':entryId/cancel')
   cancel(@Param('entryId', ParseUUIDPipe) entryId: string) {
