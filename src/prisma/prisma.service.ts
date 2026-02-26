@@ -8,6 +8,7 @@ export class PrismaService extends PrismaClient {
   constructor(configService: ConfigService) {
     const adapter = new PrismaPg({
       connectionString: configService.getOrThrow<string>('DATABASE_URL'),
+      ssl: { rejectUnauthorized: false },
     });
     super({ adapter });
   }
