@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -15,6 +17,7 @@ import { QueueEntryStatus } from 'src/generated/prisma/enums';
 export class EntriesService {
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => EventsService))
     private readonly eventsService: EventsService,
     private readonly pushService: PushService,
   ) {}

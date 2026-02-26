@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   EVENT_NAMES,
   QueueUpdatedPayload,
@@ -7,17 +6,30 @@ import {
   QueueEventType,
   EntryEventType,
 } from 'src/shared/events';
+import { QueueGateway } from './gateways/queue.gateway';
+import { EntryGateway } from './gateways/entry.gateway';
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly eventEmitter: EventEmitter2) {}
+  constructor(
+    private readonly queueGateway: QueueGateway,
+    private readonly entryGateway: EntryGateway,
+  ) {}
 
   emitQueueUpdate(payload: QueueUpdatedPayload): void {
-    this.eventEmitter.emit(EVENT_NAMES.QUEUE_UPDATED, payload);
+    this.queueGateway.server
+      .to(`queue:${payload.queueId}`)
+      .emit(EVENT_NAMES.QUEUE_UPDATE, { type: payload.type, ...payload.data });
   }
 
   emitEntryUpdate(payload: EntryUpdatedPayload): void {
-    this.eventEmitter.emit(EVENT_NAMES.ENTRY_UPDATED, payload);
+    let room = `entry:${payload.qrCode}`;
+
+    if (payload.sessionToken) room += `:${payload.sessionToken}`;
+
+    this.entryGateway.server
+      .to(room)
+      .emit(EVENT_NAMES.ENTRY_UPDATE, { type: payload.type, ...payload.data });
   }
 
   // Convenience methods for common event patterns

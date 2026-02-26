@@ -6,7 +6,6 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { QueuesModule } from './queues/queues.module';
 import { EntriesModule } from './entries/entries.module';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { EventsModule } from './events/events.module';
 import { PushModule } from './push/push.module';
 
@@ -14,7 +13,6 @@ import { PushModule } from './push/push.module';
   imports: [
     PrismaModule,
     ConfigModule.forRoot({ isGlobal: true }),
-    EventEmitterModule.forRoot(),
     EventsModule,
     PushModule,
     AuthModule,

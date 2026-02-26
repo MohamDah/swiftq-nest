@@ -8,9 +8,6 @@ import {
   Patch,
   Post,
   Query,
-  Sse,
-  MessageEvent,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { QueuesService } from './queues.service';
 import { AuthReq } from 'src/shared/decorators/auth.decorator';
@@ -20,11 +17,6 @@ import { HostDto } from 'src/auth/dto/host.dto';
 import { JoinQueueDto } from './dto/join-queue.dto';
 import { UpdateQueueDto } from './dto/update-queue.dto';
 import { EntriesService } from 'src/entries/entries.service';
-import { filter, fromEvent, map, Observable } from 'rxjs';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import jwt from 'jsonwebtoken';
-import { ConfigService } from '@nestjs/config';
-import { EVENT_NAMES, QueueUpdatedPayload } from 'src/shared/events';
 import { AnalyticsQuery as AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { AnalyticsDto } from './dto/analytics.dto';
 
@@ -33,8 +25,6 @@ export class QueuesController {
   constructor(
     private readonly queuesService: QueuesService,
     private readonly entriesService: EntriesService,
-    private readonly eventEmitter: EventEmitter2,
-    private readonly configService: ConfigService,
   ) {}
 
   @AuthReq()
@@ -99,27 +89,5 @@ export class QueuesController {
     @Body() dto: UpdateQueueDto,
   ) {
     return this.queuesService.update(id, host.id, dto);
-  }
-
-  @Sse('updates/:queueId')
-  sse(
-    @Param('queueId') queueId: string,
-    @Query('token') token: string,
-  ): Observable<MessageEvent> {
-    try {
-      jwt.verify(token, this.configService.getOrThrow('JWT_SECRET'));
-    } catch {
-      throw new UnauthorizedException();
-    }
-
-    return fromEvent(this.eventEmitter, EVENT_NAMES.QUEUE_UPDATED).pipe(
-      filter((payload: QueueUpdatedPayload) => payload.queueId === queueId),
-      map((payload) => ({
-        data: {
-          type: payload.type,
-          ...payload.data,
-        },
-      })),
-    );
   }
 }
