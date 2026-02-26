@@ -10,7 +10,7 @@ import jwt from 'jsonwebtoken';
 @WebSocketGateway({
   namespace: '/queue',
   cors: {
-    origin: JSON.parse(process.env.CORS_ORIGINS || '[]') as string[],
+    origin: '*',
     credentials: true,
   },
 })

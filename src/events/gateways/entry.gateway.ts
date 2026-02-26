@@ -10,7 +10,7 @@ import { EntriesService } from 'src/entries/entries.service';
 @WebSocketGateway({
   namespace: '/entry',
   cors: {
-    origin: JSON.parse(process.env.CORS_ORIGINS || '[]') as string[],
+    origin: '*',
     credentials: true,
   },
 })
