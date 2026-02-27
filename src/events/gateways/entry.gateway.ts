@@ -6,11 +6,13 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { EntriesService } from 'src/entries/entries.service';
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 @WebSocketGateway({
   namespace: '/entry',
   cors: {
-    origin: '*',
+    origin: JSON.parse(process.env.CORS_ORIGINS || '[]') as string[],
     credentials: true,
   },
 })
