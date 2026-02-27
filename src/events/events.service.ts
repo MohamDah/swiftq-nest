@@ -32,7 +32,6 @@ export class EventsService {
       .emit(EVENT_NAMES.ENTRY_UPDATE, { type: payload.type, ...payload.data });
   }
 
-  // Convenience methods for common event patterns
   emitEntryJoined(queueId: string, data?: QueueUpdatedPayload['data']): void {
     this.emitQueueUpdate({
       queueId,
@@ -49,7 +48,6 @@ export class EventsService {
       entry?: EntryUpdatedPayload['data'];
     },
   ): void {
-    // Emit to both channels for queue advancement
     this.emitQueueUpdate({
       queueId,
       type: QueueEventType.QUEUE_ADVANCED,
