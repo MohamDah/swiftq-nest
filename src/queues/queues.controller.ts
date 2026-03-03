@@ -29,7 +29,7 @@ import { HostDto } from 'src/auth/dto/host.dto';
 import { JoinQueueDto } from './dto/join-queue.dto';
 import { UpdateQueueDto } from './dto/update-queue.dto';
 import { EntriesService } from 'src/entries/entries.service';
-import { AnalyticsQuery as AnalyticsQueryDto } from './dto/analytics-query.dto';
+import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { AnalyticsDto } from './dto/analytics.dto';
 
 @ApiTags('queues')

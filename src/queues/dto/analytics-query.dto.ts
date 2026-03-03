@@ -9,7 +9,7 @@ export enum TimeRangeFilter {
   ALL = 'all',
 }
 
-export class AnalyticsQuery {
+export class AnalyticsQueryDto {
   @ApiProperty({
     enum: TimeRangeFilter,
     description: 'Time range for analytics data',
