@@ -6,6 +6,13 @@ import {
   HttpStatus,
   Post,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CreateHostDto } from './dto/create-host.dto';
 import { AuthService } from './auth.service';
 import { HostDto } from './dto/host.dto';
@@ -13,15 +20,23 @@ import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { AuthReq } from 'src/shared/decorators/auth.decorator';
 import { LoginDto } from './dto/login.dto';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @ApiOperation({ summary: 'Register a new host account' })
+  @ApiCreatedResponse({
+    description: 'Host registered successfully',
+    type: HostDto,
+  })
   @Post('register')
   register(@Body() body: CreateHostDto) {
     return this.authService.create(body);
   }
 
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiOkResponse({ description: 'Returns a JWT access token' })
   @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(@Body() body: LoginDto) {
@@ -30,6 +45,12 @@ export class AuthController {
     return this.authService.login(user);
   }
 
+  @ApiOperation({ summary: 'Get the currently authenticated host profile' })
+  @ApiOkResponse({
+    description: 'Returns the current host profile',
+    type: HostDto,
+  })
+  @ApiBearerAuth()
   @AuthReq()
   @Get()
   findLoggedIn(@CurrentUser() user: HostDto) {
