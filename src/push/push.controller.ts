@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -23,6 +24,7 @@ export class PushController {
 
   @ApiOperation({ summary: 'Subscribe an entry to push notifications' })
   @ApiCreatedResponse({ description: 'Subscription created successfully' })
+  @ApiNotFoundResponse({ description: 'Entry not found' })
   @Post('subscribe/:entryId')
   subscribe(
     @Param('entryId', ParseUUIDPipe) entryId: string,

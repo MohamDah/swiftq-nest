@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateQueueDto } from './dto/create-queue.dto';
@@ -161,7 +162,7 @@ export class QueuesService {
       });
 
       if (!queue) {
-        throw new BadRequestException('Queue not found');
+        throw new NotFoundException('Queue not found');
       }
 
       if (queue._count.entries > 0) {

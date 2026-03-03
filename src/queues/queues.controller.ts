@@ -11,11 +11,15 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBadRequestResponse,
   ApiCreatedResponse,
+  ApiInternalServerErrorResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { QueuesService } from './queues.service';
 import { AuthReq } from 'src/shared/decorators/auth.decorator';
@@ -38,6 +42,10 @@ export class QueuesController {
 
   @ApiOperation({ summary: 'Create a new queue' })
   @ApiCreatedResponse({ description: 'Queue created successfully' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to generate a unique QR code after multiple attempts',
+  })
   @ApiBearerAuth()
   @AuthReq()
   @Post()
@@ -47,6 +55,7 @@ export class QueuesController {
 
   @ApiOperation({ summary: 'Get all queues for the authenticated host' })
   @ApiOkResponse({ description: 'Returns a list of queues' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
   @ApiBearerAuth()
   @AuthReq()
   @Get()
@@ -56,6 +65,7 @@ export class QueuesController {
 
   @ApiOperation({ summary: 'Get analytics for the authenticated host' })
   @ApiOkResponse({ description: 'Returns analytics data', type: AnalyticsDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
   @ApiBearerAuth()
   @AuthReq()
   @Get('analytics')
@@ -68,6 +78,7 @@ export class QueuesController {
 
   @ApiOperation({ summary: 'Get public queue info by QR code' })
   @ApiOkResponse({ description: 'Returns public queue details' })
+  @ApiNotFoundResponse({ description: 'Queue not found' })
   @Get(':qrCode')
   getOnePublic(@Param('qrCode') qrCode: string) {
     return this.queuesService.getOnePublic(qrCode);
@@ -75,6 +86,10 @@ export class QueuesController {
 
   @ApiOperation({ summary: 'Get full queue management view' })
   @ApiOkResponse({ description: 'Returns full queue details for management' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
+  @ApiNotFoundResponse({
+    description: 'Queue not found or does not belong to the authenticated host',
+  })
   @ApiBearerAuth()
   @AuthReq()
   @Get(':id/manage')
@@ -89,6 +104,7 @@ export class QueuesController {
     summary: 'Check if a token already has an active entry in a queue',
   })
   @ApiOkResponse({ description: 'Returns existing entry if found, or null' })
+  @ApiNotFoundResponse({ description: 'Queue not found' })
   @ApiQuery({ name: 'token', required: false, type: String })
   @Get(':qrCode/check-entry')
   async checkExistingEntry(
@@ -100,6 +116,11 @@ export class QueuesController {
 
   @ApiOperation({ summary: 'Join a queue by QR code' })
   @ApiCreatedResponse({ description: 'Entry created and token returned' })
+  @ApiNotFoundResponse({ description: 'Queue not found' })
+  @ApiBadRequestResponse({
+    description:
+      'Queue is inactive, at max capacity, or customerName is required but missing',
+  })
   @Post(':qrCode/join')
   joinQueue(@Param('qrCode') qrCode: string, @Body() dto: JoinQueueDto = {}) {
     return this.entriesService.joinQueue(dto, qrCode);
@@ -107,6 +128,11 @@ export class QueuesController {
 
   @ApiOperation({ summary: 'Delete a queue' })
   @ApiOkResponse({ description: 'Queue deleted successfully' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
+  @ApiBadRequestResponse({
+    description: 'Queue still has active customers',
+  })
+  @ApiNotFoundResponse({ description: 'Queue not found' })
   @ApiBearerAuth()
   @AuthReq()
   @Delete(':id')
@@ -116,6 +142,10 @@ export class QueuesController {
 
   @ApiOperation({ summary: 'Update queue settings' })
   @ApiOkResponse({ description: 'Queue updated successfully' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
+  @ApiNotFoundResponse({
+    description: 'Queue not found or does not belong to the authenticated host',
+  })
   @ApiBearerAuth()
   @AuthReq()
   @Patch(':id')

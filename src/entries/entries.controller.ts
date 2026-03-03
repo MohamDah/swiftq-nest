@@ -1,9 +1,13 @@
 import { Controller, Param, ParseUUIDPipe, Post, Get } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { EntriesService } from './entries.service';
 import { AuthReq } from 'src/shared/decorators/auth.decorator';
@@ -26,6 +30,11 @@ export class EntriesController {
 
   @ApiOperation({ summary: 'Cancel a queue entry' })
   @ApiOkResponse({ description: 'Entry cancelled successfully' })
+  @ApiNotFoundResponse({ description: 'Entry not found' })
+  @ApiBadRequestResponse({
+    description:
+      'Entry is not in a cancellable state (must be WAITING or CALLED)',
+  })
   @Post(':entryId/cancel')
   cancel(@Param('entryId', ParseUUIDPipe) entryId: string) {
     return this.entriesService.cancelEntry(entryId);
@@ -33,6 +42,12 @@ export class EntriesController {
 
   @ApiOperation({ summary: 'Call a customer to be served' })
   @ApiOkResponse({ description: 'Entry status updated to called' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
+  @ApiNotFoundResponse({ description: 'Entry not found' })
+  @ApiForbiddenResponse({
+    description: 'Authenticated host does not own the queue',
+  })
+  @ApiBadRequestResponse({ description: 'Entry is not in WAITING state' })
   @ApiBearerAuth()
   @AuthReq()
   @Post(':entryId/call')
@@ -45,6 +60,12 @@ export class EntriesController {
 
   @ApiOperation({ summary: 'Mark an entry as served' })
   @ApiOkResponse({ description: 'Entry status updated to served' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
+  @ApiNotFoundResponse({ description: 'Entry not found' })
+  @ApiForbiddenResponse({
+    description: 'Authenticated host does not own the queue',
+  })
+  @ApiBadRequestResponse({ description: 'Entry is not in CALLED state' })
   @ApiBearerAuth()
   @AuthReq()
   @Post(':entryId/serve')
@@ -57,6 +78,12 @@ export class EntriesController {
 
   @ApiOperation({ summary: 'Mark a customer as a no-show' })
   @ApiOkResponse({ description: 'Entry status updated to no-show' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
+  @ApiNotFoundResponse({ description: 'Entry not found' })
+  @ApiForbiddenResponse({
+    description: 'Authenticated host does not own the queue',
+  })
+  @ApiBadRequestResponse({ description: 'Entry is not in CALLED state' })
   @ApiBearerAuth()
   @AuthReq()
   @Post(':entryId/no-show')

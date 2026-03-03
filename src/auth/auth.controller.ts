@@ -7,11 +7,14 @@ import {
   Post,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CreateHostDto } from './dto/create-host.dto';
 import { AuthService } from './auth.service';
@@ -30,6 +33,11 @@ export class AuthController {
     description: 'Host registered successfully',
     type: HostDto,
   })
+  @ApiBadRequestResponse({
+    description:
+      'Validation failed (invalid email, weak password, or businessName too short)',
+  })
+  @ApiConflictResponse({ description: 'Email is already in use' })
   @Post('register')
   register(@Body() body: CreateHostDto) {
     return this.authService.create(body);
@@ -37,6 +45,7 @@ export class AuthController {
 
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiOkResponse({ description: 'Returns a JWT access token' })
+  @ApiUnauthorizedResponse({ description: 'Invalid email or password' })
   @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(@Body() body: LoginDto) {
@@ -50,6 +59,7 @@ export class AuthController {
     description: 'Returns the current host profile',
     type: HostDto,
   })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
   @ApiBearerAuth()
   @AuthReq()
   @Get()
