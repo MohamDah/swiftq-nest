@@ -6,7 +6,7 @@ A real-time queue management system built with NestJS. Manage customer queues di
 
 - 🔐 JWT authentication for business hosts
 - 📱 Firebase push notifications
-- ⚡ Real-time updates via Server-Sent Events
+- ⚡ Real-time updates via Socket.io
 - 🎫 QR code-based queue access
 - 📊 Queue analytics and history
 
