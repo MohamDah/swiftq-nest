@@ -358,6 +358,34 @@ export class EntriesService {
           },
         });
 
+        // Update average service time
+        const servedEntries = await tx.queueEntry.findMany({
+          where: {
+            calledAt: { not: null },
+            servedAt: { not: null },
+          },
+          take: 20,
+          orderBy: { servedAt: 'desc' },
+          select: {
+            calledAt: true,
+            servedAt: true,
+          },
+        });
+
+        if (servedEntries.length >= 3) {
+          const totalWaitTimes = servedEntries.reduce(
+            (a, i) => a + (i.servedAt!.getTime() - i.calledAt!.getTime()),
+            0,
+          );
+          const avgMS = totalWaitTimes / servedEntries.length;
+          const avgMinutes = avgMS / (1000 * 60);
+          const roundedAvg = Math.round(avgMinutes * 10) / 10;
+          await tx.queue.update({
+            where: { id: entry.queueId },
+            data: { averageServiceTime: roundedAvg },
+          });
+        }
+
         return {
           success: true,
           message: `Served customer ${updated.displayNumber}`,

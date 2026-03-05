@@ -44,7 +44,7 @@ model Queue {
   description        String?
   isActive           Boolean   @default(true)
   maxSize            Int?
-  averageServiceTime Int       @default(5)
+  averageServiceTime Float       @default(5)
   requireNames       Boolean?  @default(false)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
