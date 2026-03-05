@@ -6,9 +6,10 @@ import { PrismaClient } from 'src/generated/prisma/client';
 @Injectable()
 export class PrismaService extends PrismaClient {
   constructor(configService: ConfigService) {
+    const isProduction = configService.get<string>('NODE_ENV') === 'production';
     const adapter = new PrismaPg({
       connectionString: configService.getOrThrow<string>('DATABASE_URL'),
-      ssl: { rejectUnauthorized: false },
+      ...(isProduction && { ssl: { rejectUnauthorized: false } }),
     });
     super({ adapter });
   }
